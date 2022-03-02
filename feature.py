@@ -64,7 +64,7 @@ def load_feature_dictionary(file):
     return word2vec_map
 
 # setting up global constant
-assert(len(sys.argv) == 10)
+# assert(len(sys.argv) == 10)
 train_input = sys.argv[1]
 validation_input = sys.argv[2]
 test_input = sys.argv[3]
@@ -74,63 +74,73 @@ formatted_train_out = sys.argv[6]
 formatted_validation_out = sys.argv[7]
 formatted_test_out = sys.argv[8]
 feature_flag = sys.argv[9]
+#answer = sys.argv[10]
 
 
 # model 1: convert dataset of review to an array of vectors
 def dataset2vec1(dataset, dictionary):
-    res = np.array() 
+    res = np.empty((0, len(dictionary)+1)) 
     for review in dataset:
         feature_vec = np.zeros(len(dictionary)+1)
         feature_vec[0] = review[0]
-        for word, index in dictionary:
-            if word in review[1]:
-                feature_vec[index+1] = 1
+        review_set = set(review[1].split(' '))
+        # fix this by changing 88 and 89 
+        for word, index in dictionary.items():
+            if word in review_set:
+                feature_vec[index+1] = 1        
+        # for word in review_set:
+        #     if word in dictionary.keys(): 
+        #         index = dictionary[word] + 1
+        #         feature_vec[index] = 1
         res = np.vstack((res, feature_vec))
     return res
 
 # model 2: convert dataset of review to an array of vectors
 def dataset2vec2(dataset, dictionary):
-    res = np.empty([0, VECTOR_LEN+1]) # how to create an empty array?
-    for review in dataset:
-        temp = np.array([review[0]]) # how to convert label to a 6 sig digit float?
+    res = np.zeros([np.shape(dataset)[0], VECTOR_LEN+1]) # how to create an empty array?
+    for i, review in enumerate(dataset):
+        feature_vec = np.zeros(VECTOR_LEN+1)
+        temp = np.array([review[0]]) 
         sum_vec = np.zeros(VECTOR_LEN)
         count = 0
-        for word in review[1]:
+        for word in review[1].split(' '):
             if word in dictionary.keys():
-                np.add(sum_vec, dictionary[word])
+                sum_vec = np.add(dictionary[word], sum_vec)
                 count += 1
-        feature_vec = np.hstack((temp, sum_vec/count)) # how to convert label to a 6 sig digit float?
-        res = np.vstack((res, feature_vec))
+        # feature_vec = np.hstack((temp, sum_vec/count)) 
+        feature_vec[0] = temp
+        feature_vec[1:] = np.divide(sum_vec, count)
+        res[i] = feature_vec
     return res
-
-#np.savetxt
-def array2tsv(arr, path):
-    with open(path, 'w') as f_out:
-        for vector in arr:
-            for number in vector:
-                f_out.write(str(number) + '\t')
-            f_out.write(str(number) + '\n')
-    return
 
 # organize review dataset to feature vectors
 def feature(train_input, validation_input, test_input, dict_input, feature_dictionary_input, formatted_train_out, formatted_validation_out, formatted_test_out, feature_flag):
+
     train_dataset = load_tsv_dataset(train_input)
     validation_dataset = load_tsv_dataset(validation_input)
     test_dataset = load_tsv_dataset(test_input)
     # bag of words
-    if feature_flag == 1:
+    if int(feature_flag) == 1:
         bag_dict = load_dictionary(dict_input)
         train_feature_array = dataset2vec1(train_dataset, bag_dict)
+        
         validation_feature_array = dataset2vec1(validation_dataset, bag_dict)
         test_feature_array = dataset2vec1(test_dataset, bag_dict)
         np.savetxt(formatted_train_out, train_feature_array, delimiter='\t', fmt='%d')
         np.savetxt(formatted_validation_out, validation_feature_array, delimiter='\t', fmt='%d')
         np.savetxt(formatted_test_out, test_feature_array, delimiter='\t', fmt='%d')
+        # answer_array = np.loadtxt(answer, delimiter='\t')
+        # diff = train_feature_array - answer_array
+        # print(tuple(zip(diff.nonzero()[0], diff.nonzero()[1])))
+        
+
 
     # feature dictionary
     else:
+        
         feature_dict = load_feature_dictionary(feature_dictionary_input)
         train_feature_array = dataset2vec2(train_dataset, feature_dict)
+        # print(train_feature_array[0])
         validation_feature_array = dataset2vec2(validation_dataset, feature_dict)
         test_feature_array = dataset2vec2(test_dataset, feature_dict) 
         np.savetxt(formatted_train_out, train_feature_array, delimiter='\t', fmt='%.6f')
